@@ -55,13 +55,26 @@ This tradeoff was a deliberate choice after reviewing an AI suggestion to add fu
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+AI tools were used across every phase of this project, each time in a dedicated context to keep the work focused:
+
+- **Phase 1 (Design)** — A fresh chat session was used to brainstorm the class structure. Prompting with the scenario description and asking "What classes and relationships would you design for a pet care scheduler?" produced the initial five-class UML skeleton. A follow-up prompt asking for a review of the skeleton caught the missing `ScheduledTask` wrapper and the need for `scheduled_tasks` state on the Scheduler.
+- **Phase 2 (Implementation)** — A separate session focused on turning stubs into working code. The most effective prompts were targeted requests like "Implement `generate_schedule` with a greedy time-budget algorithm that supports four sort strategies." This kept suggestions scoped to one method at a time rather than rewriting entire files.
+- **Phase 3 (Testing)** — Another session was started specifically for test planning. Asking "What are the most important edge cases to test for a pet scheduler with sorting and recurring tasks?" produced a prioritized list that mapped directly to the test functions written. Copilot's inline completions were especially fast for generating the repetitive setup code (creating `Pet`, `Task`, `Owner` fixtures) once the first test established the pattern.
+- **Phase 4 (UI)** — A final session was used to wire backend features to Streamlit. Prompting with `#file:pawpal_system.py` and asking which Scheduler methods were not yet exposed in the UI quickly identified the gaps (filter dropdowns, sort selector, conflict warnings, task completion).
+
+**Which Copilot features were most effective:**
+
+1. **`#codebase` context** — Letting Copilot see the full project when asking architectural questions ("Does my UML still match my code?") produced accurate, file-specific answers rather than generic advice.
+2. **Inline completions** — Once a pattern was established (e.g., the first test function), Copilot reliably completed subsequent test functions with correct fixture setup and assertions, saving significant boilerplate typing.
+3. **Chat-based code review** — Asking "Review this method for edge cases I missed" surfaced the empty-`preferred_time` crash risk in `sort_by_time` before it became a bug.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+**Example of a rejected suggestion:** When generating the conflict detection logic, Copilot suggested using `itertools.combinations` to check all task pairs and also included an overlapping time-window check that computed whether one task's `start_minute + duration` encroached on another task's `start_minute`. On review, this overlap check could never trigger — the scheduler places tasks sequentially with no gaps, so time windows never actually overlap by construction. Including it would have been dead code that misleads future readers into thinking overlap is a real scenario. The suggestion was rejected and replaced with the simpler exact-match check on `preferred_time`, which is what actually matters for a pet care routine where times are approximate.
+
+**How suggestions were verified:** Every AI-generated code block was reviewed by (1) reading it line-by-line before accepting, (2) tracing through at least one concrete example mentally (e.g., "if task A is at 08:00 and task B is at 08:00, does this produce the right warning?"), and (3) running the test suite after integration. The tests served as the final verification gate — if a suggestion introduced a regression, the failing test caught it immediately.
+
+**How separate chat sessions helped:** Starting a new session for each phase (design, implementation, testing, UI) prevented context bleed. The testing session didn't carry assumptions from the implementation session, which meant it could independently identify behaviors worth verifying rather than just confirming what was already written. It also kept each conversation short enough that Copilot's suggestions stayed relevant to the current task instead of drifting.
 
 ---
 
@@ -69,13 +82,23 @@ This tradeoff was a deliberate choice after reviewing an AI suggestion to add fu
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+The test suite covers 15 tests across four behavioral areas:
+
+1. **Sorting correctness (4 tests)** — Chronological ordering by `preferred_time`, empty-time-last behavior, priority-first sort, and shortest-first sort. These are important because an incorrect sort order means the owner's most critical tasks could be pushed to the end and dropped when time runs out.
+
+2. **Recurrence logic (4 tests)** — Daily tasks produce a next-day copy, weekly tasks recur in 7 days, as-needed tasks return `None`, and `Pet.complete_task()` appends the next occurrence. These matter because a recurrence bug means tasks silently disappear from the schedule — the owner misses a medication day and doesn't realize it.
+
+3. **Conflict detection (3 tests)** — Same-time collision for one pet, same-time collision across different pets (with the cross-pet warning), and back-to-back same-category flagging. Without these, the schedule would look valid even when it contains impossible overlaps.
+
+4. **Time budget / overflow (2 tests)** — Tasks exceeding `available_minutes` are excluded; zero minutes yields an empty schedule. This ensures the scheduler never over-commits the owner's time and handles the degenerate case gracefully.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+**4 out of 5 stars.** All core scheduling algorithms — sorting, recurrence, conflict detection, and time budgeting — are tested and passing. The star is withheld because the suite does not yet cover:
+
+- **Malformed input** — What happens if `preferred_time` is "abc" instead of "HH:MM"? The current `split(":")` would crash.
+- **UI integration** — The Streamlit layer is untested; a widget misconfiguration could silently pass the wrong value to the backend.
+- **Multi-pet scheduling interactions** — Beyond conflict detection, edge cases like two pets with identical task names or an owner with 10+ pets and 50+ tasks are unexplored.
 
 ---
 
@@ -83,12 +106,16 @@ This tradeoff was a deliberate choice after reviewing an AI suggestion to add fu
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+The separation between backend logic (`pawpal_system.py`) and UI (`app.py`) is the part I'm most satisfied with. Every scheduling algorithm, filter, and conflict check lives in the system module with no Streamlit dependency, which made it straightforward to test with pure pytest and then wire into the UI as a separate step. The `Scheduler` class acts as a clean API boundary — the UI calls `generate_schedule()`, reads `scheduled_tasks` and `conflicts`, and renders them. This separation meant the backend could be completed and verified before touching the UI at all.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+Two things:
+
+1. **Input validation** — The system trusts that `preferred_time` is always a valid "HH:MM" string or empty. A `Task.__post_init__` validator should parse and reject bad formats early rather than letting them propagate to `sort_by_time` where the crash would be confusing.
+
+2. **Persistent state** — Currently everything resets when the Streamlit app reruns. Adding a simple JSON or SQLite persistence layer would let the owner close the browser and come back to their schedule. The class structure already supports serialization — each dataclass has simple fields — so the effort would be modest.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+The most important lesson was that **being the lead architect means deciding what *not* to build, not just what to build.** AI tools like Copilot generate suggestions quickly and confidently, but they optimize for completeness — they will happily add overlap detection that can never trigger, `itertools` abstractions for two-line loops, and error handling for impossible states. The architect's job is to evaluate each suggestion against the actual system constraints and reject the ones that add complexity without value. Saying "no" to a correct-but-unnecessary suggestion is harder than saying "no" to a wrong one, and that judgment is the core skill that AI collaboration demands.
