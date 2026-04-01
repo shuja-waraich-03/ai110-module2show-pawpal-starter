@@ -7,6 +7,14 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+**Core user actions identified from the scenario:**
+
+1. **Add pet and owner information** — The user can enter their name and basic details about their pet (name, species, age, etc.). This establishes the context the scheduler needs to personalize care recommendations.
+
+2. **Add and edit care tasks** — The user can create pet care tasks such as walks, feeding, medication, grooming, and enrichment. Each task includes at least a duration and a priority level, and the user can update these as needs change.
+
+3. **Generate a daily care schedule** — The user can request a daily plan that organizes their tasks based on constraints like available time and task priority. The system produces a clear schedule and explains the reasoning behind its choices.
+
 **b. Design changes**
 
 - Did your design change during implementation?
