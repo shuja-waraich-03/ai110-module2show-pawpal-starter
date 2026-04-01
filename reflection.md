@@ -34,13 +34,20 @@ Yes, two changes were made after an AI-assisted review of the initial skeleton:
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three main constraints:
+- **Priority** — Tasks ranked high/medium/low determine scheduling order. High-priority tasks (medication, feeding) are placed first to guarantee they fit within available time.
+- **Available time** — The owner's `available_minutes` acts as a hard cap. The scheduler greedily fills the time budget and skips tasks that won't fit.
+- **Preferred time** — Each task can specify an "HH:MM" slot. When sorting by time, the scheduler respects the owner's preferred daily routine order.
+
+Priority was treated as the most important constraint because missing a high-priority task like medication has real consequences, while rearranging task order is merely inconvenient.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The conflict detector checks for **exact preferred_time matches** (e.g., two tasks both at "07:30") rather than computing whether time windows actually overlap based on duration. For example, a 30-minute task at "07:00" and a 5-minute task at "07:15" are not flagged as conflicting, even though the first task wouldn't finish until 07:30.
+
+This tradeoff was a deliberate choice after reviewing an AI suggestion to add full overlap detection based on `start_minute` ranges. That version was more thorough but also more complex — and in our scheduler, tasks are placed sequentially (one after another), so `start_minute` windows never truly overlap. The overlap check was dead code. Removing it kept the method simpler and honest about what it actually detects: same-slot collisions and back-to-back category stacking. For a pet care app where tasks are approximate ("morning walk sometime around 7:30"), exact-match detection is sufficient and easier to reason about.
+
+**AI refinement note:** An initial version of `_detect_conflicts` included an overlapping time-window check (`a.start_minute < b.start_minute < a_end`). On review, this could never trigger because the scheduler places tasks sequentially with no gaps. A more "Pythonic" version using `itertools.combinations` was also considered — it's more concise but harder to read for someone unfamiliar with itertools. The explicit index-based loop was kept for clarity.
 
 ---
 

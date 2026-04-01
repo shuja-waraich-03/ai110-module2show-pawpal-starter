@@ -22,6 +22,15 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+Beyond the basic requirements, the scheduler includes four algorithmic improvements:
+
+- **Sort by time** — Tasks can specify a preferred time in `"HH:MM"` format. The scheduler uses a lambda key that splits the string into `(hours, minutes)` tuples for correct chronological ordering. Tasks without a preferred time are placed last.
+- **Filter by pet, status, or category** — A composable `filter_tasks()` method accepts any combination of filters (e.g., only Mochi's pending walk tasks) and chains them in a single pass.
+- **Recurring tasks** — Daily tasks auto-generate a next-day copy when completed (`+ timedelta(days=1)`). Weekly tasks recur 7 days later. As-needed tasks do not auto-recur.
+- **Conflict detection** — After building the schedule, the system warns (without crashing) about same-time collisions for the same pet or across pets, and flags back-to-back tasks in the same category.
+
 ## Getting started
 
 ### Setup
