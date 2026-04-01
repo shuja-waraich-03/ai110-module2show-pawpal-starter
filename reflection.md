@@ -4,8 +4,13 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+The initial UML design contains five classes, each with a single clear responsibility:
+
+- **Owner** — Stores the owner's name, total available minutes for pet care, and a list of preferences. Responsible for answering whether there is enough time left for a given task (`has_time_for`).
+- **Pet** — Stores the pet's name, species, and age. Responsible for producing a short summary string for display purposes.
+- **Task** — Represents a single care activity (walk, feeding, medication, grooming, enrichment) with a title, duration, priority level, and category. Responsible for reporting whether it is high priority.
+- **ScheduledTask** — A lightweight wrapper that pairs a Task with its `start_minute` in the daily plan. Responsible for producing a human-readable time label.
+- **Scheduler** — The core engine. Takes an Owner, Pet, and list of Tasks, then generates an ordered daily schedule that fits within the owner's available time. Also responsible for explaining the reasoning behind the plan.
 
 **Core user actions identified from the scenario:**
 
@@ -17,8 +22,11 @@
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Yes, two changes were made after an AI-assisted review of the initial skeleton:
+
+1. **Added `ScheduledTask` class** — The original design had `generate_schedule()` returning a plain `list[Task]`, but there was no way to know *when* each task starts in the day. A new `ScheduledTask` dataclass was introduced to pair each task with its `start_minute`, making the schedule displayable as a timeline.
+
+2. **Added `scheduled_tasks` attribute to Scheduler** — Originally `generate_schedule()` returned a list but the Scheduler didn't store it. This meant `explain_plan()` had no access to the generated schedule. Adding `self.scheduled_tasks` lets both methods share state so the explanation can reference the actual plan.
 
 ---
 

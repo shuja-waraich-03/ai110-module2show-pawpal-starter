@@ -23,17 +23,25 @@ classDiagram
         +__repr__() String
     }
 
+    class ScheduledTask {
+        +Task task
+        +int start_minute
+        +time_label() String
+    }
+
     class Scheduler {
         +Owner owner
         +Pet pet
         +List~Task~ tasks
-        +generate_schedule() List~Task~
+        +List~ScheduledTask~ scheduled_tasks
+        +generate_schedule() List~ScheduledTask~
         +explain_plan() String
     }
 
     Owner "1" --> "1" Pet : owns
     Pet "1" --> "*" Task : has
+    ScheduledTask --> Task : wraps
     Scheduler --> Owner : uses
     Scheduler --> Pet : uses
-    Scheduler --> Task : schedules
+    Scheduler --> ScheduledTask : produces
 ```
